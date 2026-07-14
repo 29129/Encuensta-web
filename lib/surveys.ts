@@ -1,4 +1,4 @@
-import { getD1, makeSlug, newId } from "./db";
+import { getDatabase as getD1, makeSlug, newId, type DatabaseClient, type PreparedStatement } from "./db";
 import type { AnswerInput, QuestionResult, QuestionType, ResultsPayload, Survey, SurveyInput, SurveyQuestion, SurveyStatus } from "./types";
 
 type SurveyRow = {
@@ -73,7 +73,7 @@ export async function getPublicSurvey(slug: string): Promise<Survey | null> {
   return survey;
 }
 
-function questionStatements(db: D1Database, surveyId: string, questions: SurveyQuestion[]): D1PreparedStatement[] {
+function questionStatements(db: DatabaseClient, surveyId: string, questions: SurveyQuestion[]): PreparedStatement[] {
   return questions.map((question, position) => db.prepare("INSERT INTO questions (id, survey_id, prompt, type, required, position, options_json, config_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(
     question.id || newId("q"), surveyId, question.prompt, question.type, question.required ? 1 : 0, position, JSON.stringify(question.options ?? []), JSON.stringify(question.config ?? {}),
   ));
@@ -152,7 +152,7 @@ export async function submitResponse(slug: string, payload: { respondentName?: s
     if (duplicate) throw new PulsoError("Este dispositivo ya registró una respuesta.", 409);
   }
   const responseId = newId("rsp"); const submittedAt = now.toISOString();
-  const statements: D1PreparedStatement[] = [db.prepare("INSERT INTO responses (id, survey_id, respondent_name, respondent_email, respondent_token, submitted_at) VALUES (?, ?, ?, ?, ?, ?)").bind(
+  const statements: PreparedStatement[] = [db.prepare("INSERT INTO responses (id, survey_id, respondent_name, respondent_email, respondent_token, submitted_at) VALUES (?, ?, ?, ?, ?, ?)").bind(
     responseId, survey.id, survey.isAnonymous ? null : String(payload.respondentName ?? "").trim() || null, survey.isAnonymous ? null : email || null, token, submittedAt,
   )];
   for (const question of survey.questions) {
@@ -216,7 +216,7 @@ export async function ensureLocalDemoSurvey(ownerEmail: string): Promise<void> {
   await setSurveyStatus(survey.id, ownerEmail, "published");
   const db = await getD1(); const experiences = ["Excelente", "Buena", "Buena", "Excelente", "Regular", "Buena", "Excelente", "Buena", "Regular", "Excelente", "Buena", "Buena"];
   const comments = ["La atención fue clara y amable.", "Me gustó la rapidez del proceso.", "El equipo resolvió todas mis dudas.", "Sería útil tener más información en línea.", "Muy buena experiencia en general.", "El seguimiento fue excelente."];
-  const statements: D1PreparedStatement[] = [];
+  const statements: PreparedStatement[] = [];
   for (let index = 0; index < experiences.length; index++) {
     const responseId = newId("rsp"); const submittedAt = new Date(Date.now() - (experiences.length - index) * 10 * 3600000).toISOString();
     statements.push(db.prepare("INSERT INTO responses (id, survey_id, respondent_token, submitted_at) VALUES (?, ?, ?, ?)").bind(responseId, survey.id, `demo-${index}`, submittedAt));

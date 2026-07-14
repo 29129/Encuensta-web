@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ClerkSignOutButton } from "./ClerkWidget";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { QuestionResult, QuestionType, ResultsPayload, Survey, SurveyInput, SurveyQuestion, SurveyStatus } from "../../lib/types";
 
@@ -96,7 +97,7 @@ function AdminShell({ user, path, children }: { user: AdminUser; path: string[];
           {isResults && <span className="side-link active"><span className="side-icon">↗</span>Resultados</span>}
         </nav>
         <div className="sidebar-tip"><span className="tip-dot" /><strong>Consejo rápido</strong><p>Las encuestas cortas suelen recibir más respuestas.</p></div>
-        <div className="sidebar-user"><span className="avatar">{initials(user.name)}</span><span><strong>{user.name}</strong><small>{user.isLocalDemo ? "Vista local" : user.email}</small></span>{!user.isLocalDemo && <a href="/signout-with-chatgpt?return_to=/" aria-label="Cerrar sesión">↗</a>}</div>
+        <div className="sidebar-user"><span className="avatar">{initials(user.name)}</span><span><strong>{user.name}</strong><small>Cuenta de administrador</small></span><ClerkSignOutButton /></div>
       </aside>
       {menuOpen && <button className="sidebar-scrim" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
       <div className="admin-stage">
@@ -121,7 +122,7 @@ function Dashboard() {
   const [surveys, setSurveys] = useState<Survey[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
   const [query, setQuery] = useState(""); const [filter, setFilter] = useState<"all" | SurveyStatus>("all"); const [share, setShare] = useState<Survey | null>(null); const [toast, setToast] = useState("");
   const load = useCallback(async () => { try { setError(""); const data = await api<{ surveys: Survey[] }>("/api/admin/surveys"); setSurveys(data.surveys); } catch (err) { setError(err instanceof Error ? err.message : "No se pudieron cargar las encuestas."); } finally { setLoading(false); } }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
   const filtered = useMemo(() => surveys.filter((survey) => (filter === "all" || survey.status === filter) && survey.title.toLowerCase().includes(query.toLowerCase())), [surveys, filter, query]);
   const totalResponses = surveys.reduce((sum, survey) => sum + (survey.responseCount ?? 0), 0); const active = surveys.filter((survey) => survey.status === "published").length;
 
@@ -234,7 +235,7 @@ function QuestionPreview({ question, index }: { question: SurveyQuestion; index:
 function ResultsDashboard({ surveyId }: { surveyId: string }) {
   const [data, setData] = useState<ResultsPayload | null>(null); const [error, setError] = useState(""); const [loading, setLoading] = useState(true); const [paused, setPaused] = useState(false); const [range, setRange] = useState<"7" | "30" | "all">("all"); const [lastUpdate, setLastUpdate] = useState<Date | null>(null); const [chartKinds, setChartKinds] = useState<Record<string, ChartKind>>({}); const [share, setShare] = useState(false);
   const load = useCallback(async (quiet = false) => { try { if (!quiet) setLoading(true); const result = await api<ResultsPayload>(`/api/admin/surveys/${surveyId}/results?range=${range}`); setData(result); setLastUpdate(new Date()); setError(""); } catch (err) { setError(err instanceof Error ? err.message : "No se pudieron actualizar los resultados."); } finally { setLoading(false); } }, [surveyId, range]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
   useEffect(() => { if (paused) return; const timer = window.setInterval(() => void load(true), 4000); return () => window.clearInterval(timer); }, [paused, load]);
   if (loading && !data) return <div className="builder-loading"><span /><p>Calculando resultados…</p></div>;
   if (!data) return <div className="empty-state"><h3>No pudimos cargar los resultados</h3><p>{error}</p><button className="button button-dark" onClick={() => void load()}>Reintentar</button></div>;
