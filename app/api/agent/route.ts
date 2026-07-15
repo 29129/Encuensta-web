@@ -62,15 +62,21 @@ function confirmedSurveyId(value: unknown): string | null {
   return typeof action.surveyId === "string" && action.surveyId.trim() ? action.surveyId.trim() : null;
 }
 
+function environmentValue(name: string, fallback = ""): string {
+  const raw = process.env[name]?.trim() || fallback;
+  const withoutAssignment = raw.replace(new RegExp(`^${name}\\s*=\\s*`, "i"), "");
+  return withoutAssignment.replace(/^['"]|['"]$/g, "").trim();
+}
+
 async function requestResponse(input: unknown, tools?: unknown): Promise<ResponsesApiResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = environmentValue("OPENAI_API_KEY");
   if (!apiKey) throw new PulsoError("El AI Agent todavía no está configurado.", 503);
   let response: Response;
   try {
     response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-5", instructions: AGENT_INSTRUCTIONS, input, store: false, ...(tools ? { tools, parallel_tool_calls: false } : {}) }),
+      body: JSON.stringify({ model: environmentValue("OPENAI_MODEL", "gpt-5"), instructions: AGENT_INSTRUCTIONS, input, store: false, ...(tools ? { tools, parallel_tool_calls: false } : {}) }),
     });
   } catch {
     throw new PulsoError("No se pudo conectar con el AI Agent. Inténtalo nuevamente.", 503);
@@ -78,7 +84,7 @@ async function requestResponse(input: unknown, tools?: unknown): Promise<Respons
   const data = await response.json().catch(() => null) as ResponsesApiResult | null;
   if (!response.ok || !data) {
     const upstreamMessage = typeof data?.error?.message === "string" ? data.error.message.replace(/sk-[A-Za-z0-9_-]+/g, "[oculto]").slice(0, 240) : "sin detalles";
-    console.error("AI Agent OpenAI response error", { status: response.status, code: data?.error?.code, type: data?.error?.type, message: upstreamMessage });
+    console.error("AI Agent OpenAI response error", { status: response.status, code: data?.error?.code, type: data?.error?.type, message: upstreamMessage, keyPrefix: apiKey.slice(0, 8), keySuffix: apiKey.slice(-4), keyLength: apiKey.length });
     if (response.status === 401) throw new PulsoError("Vercel está usando una OPENAI_API_KEY inválida o no actualizada.", 502);
     if (response.status === 404) throw new PulsoError(`El modelo configurado no está disponible en OpenAI: ${process.env.OPENAI_MODEL || "(vacío)"}.`, 502);
     if (response.status === 429) throw new PulsoError("OpenAI rechazó la solicitud por límite de uso o saldo insuficiente.", 429);
