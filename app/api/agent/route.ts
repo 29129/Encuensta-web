@@ -5,7 +5,7 @@ import { PulsoError } from "../../../lib/surveys";
 type AgentTurn = { role: "user" | "assistant"; content: string };
 type AgentRequest = { message?: unknown; messages?: unknown; confirmAction?: unknown };
 type FunctionCall = { type: "function_call"; name: string; arguments: string; call_id: string };
-type ResponsesApiResult = { id?: unknown; output_text?: unknown; output?: unknown[] };
+type ResponsesApiResult = { id?: unknown; output_text?: unknown; output?: unknown[]; error?: { message?: unknown; code?: unknown; type?: unknown } };
 
 const AGENT_INSTRUCTIONS = [
   "Eres AI Agent, el asistente administrativo de la plataforma Pulso.",
@@ -76,7 +76,15 @@ async function requestResponse(input: unknown, tools?: unknown): Promise<Respons
     throw new PulsoError("No se pudo conectar con el AI Agent. Inténtalo nuevamente.", 503);
   }
   const data = await response.json().catch(() => null) as ResponsesApiResult | null;
-  if (!response.ok || !data) throw new PulsoError("El AI Agent no pudo responder en este momento. Inténtalo nuevamente.", 502);
+  if (!response.ok || !data) {
+    const upstreamMessage = typeof data?.error?.message === "string" ? data.error.message.replace(/sk-[A-Za-z0-9_-]+/g, "[oculto]").slice(0, 240) : "sin detalles";
+    console.error("AI Agent OpenAI response error", { status: response.status, code: data?.error?.code, type: data?.error?.type, message: upstreamMessage });
+    if (response.status === 401) throw new PulsoError("Vercel está usando una OPENAI_API_KEY inválida o no actualizada.", 502);
+    if (response.status === 404) throw new PulsoError(`El modelo configurado no está disponible en OpenAI: ${process.env.OPENAI_MODEL || "(vacío)"}.`, 502);
+    if (response.status === 429) throw new PulsoError("OpenAI rechazó la solicitud por límite de uso o saldo insuficiente.", 429);
+    if (response.status === 400) throw new PulsoError(`OpenAI rechazó la configuración del AI Agent: ${upstreamMessage}`, 502);
+    throw new PulsoError("OpenAI no está disponible en este momento. Inténtalo nuevamente.", 502);
+  }
   return data;
 }
 
