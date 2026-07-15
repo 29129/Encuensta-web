@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignOutButton } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AIAgentChat from "./AIAgentChat";
 import type { QuestionResult, QuestionType, ResultsPayload, Survey, SurveyInput, SurveyQuestion, SurveyStatus } from "../../lib/types";
 
 type AdminUser = { email: string; name: string; isLocalDemo: boolean };
@@ -103,7 +104,7 @@ function AdminShell({ user, path, children }: { user: AdminUser; path: string[];
       <div className="admin-stage">
         <header className="mobile-admin-head"><button className="icon-button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú">☰</button><div className="brand"><span className="brand-mark">P</span><span>Pulso</span></div><span className="avatar avatar-small">{initials(user.name)}</span></header>
         <div className="admin-topline"><div><span className="eyebrow">Panel administrativo</span><h1>{title}</h1></div><div className="topline-user"><span>Hola, {user.name.split(" ")[0]}</span><span className="avatar">{initials(user.name)}</span></div></div>
-        <main id="main-content" className="admin-content">{children}</main>
+        <main id="main-content" className="admin-content">{children}</main><AIAgentChat />
       </div>
     </div>
   );
