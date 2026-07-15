@@ -84,7 +84,7 @@ function ShareModal({ survey, onClose }: { survey: Survey; onClose: () => void }
   );
 }
 
-function AdminShell({ user, path, children }: { user: AdminUser; path: string[]; children: React.ReactNode }) {
+function AdminShell({ user, path, voiceEnabled, children }: { user: AdminUser; path: string[]; voiceEnabled: boolean; children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false); const isDashboard = path.length === 0; const isBuilder = path[0] === "nueva" || path.at(-1) === "editar"; const isResults = path.at(-1) === "resultados";
   const title = isDashboard ? "Tus encuestas" : isBuilder ? "Editor de encuesta" : isResults ? "Resultados" : "Panel";
   return (
@@ -104,19 +104,19 @@ function AdminShell({ user, path, children }: { user: AdminUser; path: string[];
       <div className="admin-stage">
         <header className="mobile-admin-head"><button className="icon-button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú">☰</button><div className="brand"><span className="brand-mark">P</span><span>Pulso</span></div><span className="avatar avatar-small">{initials(user.name)}</span></header>
         <div className="admin-topline"><div><span className="eyebrow">Panel administrativo</span><h1>{title}</h1></div><div className="topline-user"><span>Hola, {user.name.split(" ")[0]}</span><span className="avatar">{initials(user.name)}</span></div></div>
-        <main id="main-content" className="admin-content">{children}</main><AIAgentChat />
+        <main id="main-content" className="admin-content">{children}</main><AIAgentChat voiceEnabled={voiceEnabled} />
       </div>
     </div>
   );
 }
 
-export default function AdminClient({ user, path }: { user: AdminUser; path: string[] }) {
+export default function AdminClient({ user, path, voiceEnabled }: { user: AdminUser; path: string[]; voiceEnabled: boolean }) {
   let content: React.ReactNode;
   if (path[0] === "nueva") content = <SurveyBuilder />;
   else if (path[0] === "encuestas" && path[1] && path[2] === "editar") content = <SurveyBuilder surveyId={path[1]} />;
   else if (path[0] === "encuestas" && path[1] && path[2] === "resultados") content = <ResultsDashboard surveyId={path[1]} />;
   else content = <Dashboard />;
-  return <AdminShell user={user} path={path}>{content}</AdminShell>;
+  return <AdminShell user={user} path={path} voiceEnabled={voiceEnabled}>{content}</AdminShell>;
 }
 
 function Dashboard() {

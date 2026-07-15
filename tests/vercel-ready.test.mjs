@@ -28,3 +28,22 @@ test("incluye una migración PostgreSQL idempotente", async () => {
   }
   assert.doesNotMatch(migration, /`/);
 });
+
+test("integra una entrada de voz protegida y editable en el AI Agent", async () => {
+  const [route, recorder, chat, example] = await Promise.all([
+    readFile(new URL("app/api/agent/transcription/route.ts", root), "utf8"),
+    readFile(new URL("app/components/agent/useVoiceRecorder.ts", root), "utf8"),
+    readFile(new URL("app/components/AIAgentChat.tsx", root), "utf8"),
+    readFile(new URL(".env.example", root), "utf8"),
+  ]);
+
+  assert.match(route, /assertSameOrigin\(request\)/);
+  assert.match(route, /requireAdmin\(request\)/);
+  assert.match(route, /MAX_AUDIO_BYTES/);
+  assert.match(route, /\/v1\/audio\/transcriptions/);
+  assert.match(recorder, /MAX_AUDIO_DURATION_SECONDS/);
+  assert.match(recorder, /fetch\("\/api\/agent\/transcription"/);
+  assert.match(chat, /onTranscription: applyTranscription/);
+  assert.match(chat, /Revisa el texto antes de enviarlo/);
+  assert.match(example, /^OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe$/m);
+});

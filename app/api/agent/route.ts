@@ -1,4 +1,5 @@
 import { AGENT_TOOLS, executeAgentTool } from "../../../lib/agent/tools";
+import { environmentValue } from "../../../lib/env";
 import { apiError, assertSameOrigin, requireAdmin } from "../../../lib/http";
 import { PulsoError } from "../../../lib/surveys";
 
@@ -75,12 +76,6 @@ function confirmedSurveyId(value: unknown): string | null {
   const action = value as { type?: unknown; surveyId?: unknown };
   if (action.type !== "publishSurvey") return null;
   return typeof action.surveyId === "string" && action.surveyId.trim() ? action.surveyId.trim() : null;
-}
-
-function environmentValue(name: string, fallback = ""): string {
-  const raw = process.env[name]?.trim() || fallback;
-  const withoutAssignment = raw.replace(new RegExp(`^${name}\\s*=\\s*`, "i"), "");
-  return withoutAssignment.replace(/^['"]|['"]$/g, "").trim();
 }
 
 async function requestResponse(input: unknown, tools?: unknown): Promise<ResponsesApiResult> {

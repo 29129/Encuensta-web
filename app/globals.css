@@ -702,6 +702,27 @@ img { max-width: 100%; }
 .ai-agent-error { padding: 10px 12px; border: 1px solid #efbcae; border-radius: 12px; color: #783427; background: #fff1ed; font-size: 12px; line-height: 1.4; }
 .ai-agent-form { display: grid; gap: 8px; padding: 11px 13px 8px; border-top: 1px solid var(--line); background: white; }
 .ai-agent-form textarea { width: 100%; resize: none; padding: 10px 11px; border: 1px solid var(--line); border-radius: 11px; outline: none; background: #fbfcfa; font-size: 12px; line-height: 1.4; }.ai-agent-form textarea:focus { border-color: #82a995; box-shadow: 0 0 0 3px rgba(130, 169, 149, .15); }
-.ai-agent-form > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }.ai-agent-form small { color: #87958d; font-size: 9px; }.ai-agent-form .button { width: 35px; min-height: 35px; padding: 0; border-radius: 10px; font-size: 17px; }
+.ai-agent-form-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ai-agent-form-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+.ai-agent-form small { color: #87958d; font-size: 9px; }.ai-agent-form .button { width: 35px; min-height: 35px; padding: 0; border-radius: 10px; font-size: 17px; }
+.ai-agent-voice-status { display: flex; align-items: center; gap: 7px; min-height: 29px; padding: 6px 9px; border: 1px solid #dce7e0; border-radius: 9px; color: #527062; background: #f5f9f6; font-size: 10px; line-height: 1.35; }
+.ai-agent-voice-status.voice-recording { border-color: #f0c3b9; color: #8c3a2d; background: #fff3ef; }
+.ai-agent-voice-status.voice-recording i { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: #e25f4d; box-shadow: 0 0 0 0 rgba(226, 95, 77, .35); animation: ai-agent-voice-pulse 1.35s infinite; }
+.ai-agent-voice-status.voice-ready { border-color: #cce3b4; color: #456822; background: #f3f9e9; }
+.ai-agent-voice-status.voice-error { border-color: #efbcae; color: #783427; background: #fff1ed; }
+.ai-agent-mic-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 35px; height: 35px; padding: 0; border: 1px solid #d5e1da; border-radius: 10px; color: #315e4c; background: #f5f9f6; cursor: pointer; transition: width .18s ease, border-color .18s ease, color .18s ease, background .18s ease; }
+.ai-agent-mic-button:hover:not(:disabled) { border-color: #8caf9e; color: #174b37; background: #ebf4ee; }
+.ai-agent-mic-button:focus-visible, .ai-agent-mic-cancel:focus-visible { outline: 3px solid rgba(130, 169, 149, .28); outline-offset: 2px; }
+.ai-agent-mic-button:disabled { cursor: wait; opacity: .7; }
+.ai-agent-mic-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ai-agent-mic-button.voice-recording { width: 76px; border-color: #d95443; color: white; background: #d95443; }
+.ai-agent-mic-button.voice-recording:hover { border-color: #bf4032; color: white; background: #bf4032; }
+.ai-agent-mic-button b { min-width: 32px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.ai-agent-stop-icon { width: 9px; height: 9px; border-radius: 2px; background: currentColor; }
+.ai-agent-mic-cancel { display: grid; place-items: center; width: 29px; height: 29px; padding: 0; border: 0; border-radius: 8px; color: #8b5b51; background: transparent; font-size: 17px; cursor: pointer; }
+.ai-agent-mic-cancel:hover { color: #783427; background: #fff1ed; }
+.ai-agent-mic-spinner { width: 15px; height: 15px; border: 2px solid rgba(49, 94, 76, .25); border-top-color: currentColor; border-radius: 50%; animation: ai-agent-spin .75s linear infinite; }
+@keyframes ai-agent-spin { to { transform: rotate(360deg); } }
+@keyframes ai-agent-voice-pulse { 70% { box-shadow: 0 0 0 7px rgba(226, 95, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(226, 95, 77, 0); } }
 .ai-agent-footer { display: flex; justify-content: space-between; gap: 10px; padding: 7px 15px 12px; color: #849189; background: white; font-size: 9px; }.ai-agent-footer a { color: #38735a; font-weight: 750; }
 @media (max-width: 680px) { .ai-agent-launcher { right: 16px; bottom: 16px; }.ai-agent-panel { right: 8px; bottom: 8px; width: calc(100vw - 16px); height: calc(100svh - 16px); border-radius: 20px; } }

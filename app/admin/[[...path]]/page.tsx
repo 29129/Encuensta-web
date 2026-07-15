@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import AdminClient from "../../components/AdminClient";
+import { isVoiceFeatureEnabled } from "../../../lib/agent/voice";
 import { getAdminIdentity } from "../../../lib/auth";
 import { isDemoMode } from "../../../lib/demo";
 
@@ -28,5 +29,5 @@ export default async function AdminPage({ params }: { params: Promise<{ path?: s
   const user = await getAdminIdentity(undefined, true);
   const { path = [] } = await params;
   if (!user) redirect("/sign-in?redirect_url=/admin");
-  return <AdminClient user={user} path={path} />;
+  return <AdminClient user={user} path={path} voiceEnabled={isVoiceFeatureEnabled()} />;
 }
