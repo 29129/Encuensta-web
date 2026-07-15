@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
+import { isDemoMode } from "../lib/demo";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,5 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <ClerkProvider localization={esES} signInUrl="/sign-in" signUpUrl="/sign-up" signInFallbackRedirectUrl="/admin" signUpFallbackRedirectUrl="/admin"><html lang="es"><body>{children}</body></html></ClerkProvider>;
+  const document = <html lang="es"><body>{children}</body></html>;
+  if (isDemoMode()) return document;
+  return <ClerkProvider localization={esES} signInUrl="/sign-in" signUpUrl="/sign-up" signInFallbackRedirectUrl="/admin" signUpFallbackRedirectUrl="/admin">{document}</ClerkProvider>;
 }

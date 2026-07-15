@@ -1,6 +1,10 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse, type NextMiddleware } from "next/server";
+import { isDemoMode } from "./lib/demo";
 
-export default clerkMiddleware();
+const demoProxy: NextMiddleware = () => NextResponse.next();
+
+export default isDemoMode() ? demoProxy : clerkMiddleware();
 
 export const config = {
   matcher: [

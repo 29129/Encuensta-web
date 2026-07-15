@@ -1,8 +1,10 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { getDemoIdentity, isDemoMode } from "./demo";
 
 export type AdminIdentity = { email: string; name: string; isLocalDemo: boolean };
 
 export async function getAdminIdentity(_request?: Request, includeProfile = false): Promise<AdminIdentity | null> {
+  if (isDemoMode()) return getDemoIdentity();
   if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || !process.env.CLERK_SECRET_KEY) return null;
 
   const { userId } = await auth();

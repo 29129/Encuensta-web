@@ -98,7 +98,7 @@ function AdminShell({ user, path, children }: { user: AdminUser; path: string[];
           {isResults && <span className="side-link active"><span className="side-icon">↗</span>Resultados</span>}
         </nav>
         <div className="sidebar-tip"><span className="tip-dot" /><strong>Consejo rápido</strong><p>Las encuestas cortas suelen recibir más respuestas.</p></div>
-        <div className="sidebar-user"><span className="avatar">{initials(user.name)}</span><span><strong>{user.name}</strong><small>Cuenta de administrador</small></span><SignOutButton redirectUrl="/"><button className="signout-button" type="button" aria-label="Cerrar sesión">↗</button></SignOutButton></div>
+        <div className="sidebar-user"><span className="avatar">{initials(user.name)}</span><span><strong>{user.name}</strong><small>{user.isLocalDemo ? "Modo demo del concurso" : "Cuenta de administrador"}</small></span>{!user.isLocalDemo && <SignOutButton redirectUrl="/"><button className="signout-button" type="button" aria-label="Cerrar sesión">↗</button></SignOutButton>}</div>
       </aside>
       {menuOpen && <button className="sidebar-scrim" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
       <div className="admin-stage">

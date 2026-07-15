@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import AdminClient from "../../components/AdminClient";
 import { getAdminIdentity } from "../../../lib/auth";
+import { isDemoMode } from "../../../lib/demo";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Panel administrativo" };
 
 export default async function AdminPage({ params }: { params: Promise<{ path?: string[] }> }) {
   const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
-  if (!clerkConfigured) {
+  if (!isDemoMode() && !clerkConfigured) {
     return (
       <main className="signin-page">
         <section>
