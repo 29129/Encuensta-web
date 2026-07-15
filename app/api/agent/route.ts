@@ -47,8 +47,23 @@ function getFunctionCalls(response: ResponsesApiResult): FunctionCall[] {
 }
 
 function responseMessage(response: ResponsesApiResult): string {
-  if (typeof response.output_text !== "string" || !response.output_text.trim()) throw new PulsoError("El AI Agent no pudo responder en este momento. Inténtalo nuevamente.", 502);
-  return response.output_text.trim();
+  if (typeof response.output_text === "string" && response.output_text.trim()) return response.output_text.trim();
+
+  const text = Array.isArray(response.output)
+    ? response.output.flatMap((item) => {
+      if (!item || typeof item !== "object") return [];
+      const content = (item as { content?: unknown }).content;
+      if (!Array.isArray(content)) return [];
+      return content.flatMap((part) => {
+        if (!part || typeof part !== "object") return [];
+        const outputPart = part as { type?: unknown; text?: unknown };
+        return outputPart.type === "output_text" && typeof outputPart.text === "string" ? [outputPart.text] : [];
+      });
+    }).join("\n").trim()
+    : "";
+
+  if (!text) throw new PulsoError("El AI Agent no pudo responder en este momento. Inténtalo nuevamente.", 502);
+  return text;
 }
 
 function actionList(action: unknown): unknown[] {
