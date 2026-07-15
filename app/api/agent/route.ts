@@ -7,6 +7,9 @@ type AgentTurn = { role: "user" | "assistant"; content: string };
 type AgentRequest = { message?: unknown; messages?: unknown; confirmAction?: unknown };
 type FunctionCall = { type: "function_call"; name: string; arguments: string; call_id: string };
 type ResponsesApiResult = { id?: unknown; output_text?: unknown; output?: unknown[]; error?: { message?: unknown; code?: unknown; type?: unknown } };
+type AgentAction = { type?: unknown; title?: unknown };
+
+const MAX_TOOL_STEPS = 6;
 
 const AGENT_INSTRUCTIONS = [
   "Eres AI Agent, el asistente administrativo de la plataforma Pulso.",
@@ -15,6 +18,7 @@ const AGENT_INSTRUCTIONS = [
   "Antes de crear o editar, pregunta solo lo que falte y conserva los datos que ya estén definidos.",
   "Una encuesta nueva se crea como borrador. Si una herramienta devuelve requiresConfirmation, no digas que se publicó: pide confirmación explícita.",
   "Solo analiza datos devueltos por las herramientas y reconoce cuando no hay suficientes respuestas.",
+  "Usa únicamente las herramientas disponibles. Nunca escribas llamadas, JSON, comandos ni sintaxis interna de herramientas en la respuesta para el usuario.",
 ].join(" ");
 
 function validateMessage(value: unknown): string {
@@ -48,9 +52,8 @@ function getFunctionCalls(response: ResponsesApiResult): FunctionCall[] {
 }
 
 function responseMessage(response: ResponsesApiResult): string {
-  if (typeof response.output_text === "string" && response.output_text.trim()) return response.output_text.trim();
-
-  const text = Array.isArray(response.output)
+  const outputText = typeof response.output_text === "string" ? response.output_text.trim() : "";
+  const text = outputText || (Array.isArray(response.output)
     ? response.output.flatMap((item) => {
       if (!item || typeof item !== "object") return [];
       const content = (item as { content?: unknown }).content;
@@ -61,9 +64,10 @@ function responseMessage(response: ResponsesApiResult): string {
         return outputPart.type === "output_text" && typeof outputPart.text === "string" ? [outputPart.text] : [];
       });
     }).join("\n").trim()
-    : "";
+    : "");
 
   if (!text) throw new PulsoError("El AI Agent no pudo responder en este momento. Inténtalo nuevamente.", 502);
+  if (/(?:^|\n)\s*to=(?:functions|[a-z_]+)\./im.test(text)) throw new PulsoError("El AI Agent intentó mostrar una operación interna. Inténtalo nuevamente.", 502);
   return text;
 }
 
@@ -78,7 +82,20 @@ function confirmedSurveyId(value: unknown): string | null {
   return typeof action.surveyId === "string" && action.surveyId.trim() ? action.surveyId.trim() : null;
 }
 
-async function requestResponse(input: unknown, tools?: unknown): Promise<ResponsesApiResult> {
+function isPublishConfirmation(action: unknown): action is AgentAction & { type: "publish_confirmation_required" } {
+  return Boolean(action && typeof action === "object" && (action as AgentAction).type === "publish_confirmation_required");
+}
+
+function publishConfirmationMessage(action: AgentAction): string {
+  const title = typeof action.title === "string" && action.title.trim() ? ` “${action.title.trim()}”` : "";
+  return `La encuesta${title} está lista para publicarse. Confirma la publicación para hacerla visible mediante su enlace.`;
+}
+
+function toolLoopInput(input: string | AgentTurn[]): unknown[] {
+  return typeof input === "string" ? [{ role: "user", content: input }] : [...input];
+}
+
+async function requestResponse(input: unknown): Promise<ResponsesApiResult> {
   const apiKey = environmentValue("OPENAI_API_KEY");
   if (!apiKey) throw new PulsoError("El AI Agent todavía no está configurado.", 503);
   let response: Response;
@@ -86,7 +103,7 @@ async function requestResponse(input: unknown, tools?: unknown): Promise<Respons
     response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: environmentValue("OPENAI_MODEL", "gpt-5"), instructions: AGENT_INSTRUCTIONS, input, store: false, ...(tools ? { tools, parallel_tool_calls: false } : {}) }),
+      body: JSON.stringify({ model: environmentValue("OPENAI_MODEL", "gpt-5"), instructions: AGENT_INSTRUCTIONS, input, tools: AGENT_TOOLS, parallel_tool_calls: false, store: false }),
     });
   } catch {
     throw new PulsoError("No se pudo conectar con el AI Agent. Inténtalo nuevamente.", 503);
@@ -104,6 +121,30 @@ async function requestResponse(input: unknown, tools?: unknown): Promise<Respons
   return data;
 }
 
+async function runToolLoop(initialInput: string | AgentTurn[], ownerId: string) {
+  const input = toolLoopInput(initialInput);
+  let latestAction: unknown = null;
+
+  for (let step = 0; step < MAX_TOOL_STEPS; step += 1) {
+    const response = await requestResponse(input);
+    const functionCalls = getFunctionCalls(response);
+    if (functionCalls.length === 0) return { response, action: latestAction, confirmation: null };
+    if (functionCalls.length > 1 || !response.output) throw new PulsoError("El AI Agent solicitó más de una acción simultánea. Inténtalo nuevamente.", 502);
+
+    const toolCall = functionCalls[0];
+    input.push(...response.output);
+    const toolResult = await executeAgentTool(toolCall.name, toolCall.arguments, ownerId);
+    if (toolResult.action) latestAction = toolResult.action;
+    input.push({ type: "function_call_output", call_id: toolCall.call_id, output: JSON.stringify(toolResult.output) });
+
+    if (isPublishConfirmation(toolResult.action)) {
+      return { response: null, action: toolResult.action, confirmation: publishConfirmationMessage(toolResult.action) };
+    }
+  }
+
+  throw new PulsoError("El AI Agent necesitó demasiados pasos para completar la solicitud. Inténtalo con una instrucción más concreta.", 502);
+}
+
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
@@ -117,15 +158,9 @@ export async function POST(request: Request) {
       return Response.json({ agent: "AI Agent", status: "active", message: `La encuesta${action?.title ? ` “${action.title}”` : ""} fue publicada correctamente.`, responseId: null, actions: actionList(result.action) });
     }
 
-    const firstResponse = await requestResponse(normalizeInput(payload), AGENT_TOOLS);
-    const functionCalls = getFunctionCalls(firstResponse);
-    if (functionCalls.length === 0) return Response.json({ agent: "AI Agent", status: "active", message: responseMessage(firstResponse), responseId: typeof firstResponse.id === "string" ? firstResponse.id : null, actions: [] });
-    if (functionCalls.length > 1 || !firstResponse.output) throw new PulsoError("El AI Agent solicitó más de una acción. Inténtalo nuevamente.", 502);
-
-    const toolCall = functionCalls[0];
-    const toolResult = await executeAgentTool(toolCall.name, toolCall.arguments, identity.email);
-    const finalResponse = await requestResponse([...firstResponse.output, { type: "function_call_output", call_id: toolCall.call_id, output: JSON.stringify(toolResult.output) }]);
-    return Response.json({ agent: "AI Agent", status: "active", message: responseMessage(finalResponse), responseId: typeof finalResponse.id === "string" ? finalResponse.id : null, actions: actionList(toolResult.action) });
+    const result = await runToolLoop(normalizeInput(payload), identity.email);
+    if (result.confirmation || !result.response) return Response.json({ agent: "AI Agent", status: "active", message: result.confirmation || "Confirma la publicación de la encuesta.", responseId: null, actions: actionList(result.action) });
+    return Response.json({ agent: "AI Agent", status: "active", message: responseMessage(result.response), responseId: typeof result.response.id === "string" ? result.response.id : null, actions: actionList(result.action) });
   } catch (error) {
     return apiError(error);
   }
